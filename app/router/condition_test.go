@@ -14,7 +14,6 @@ import (
 	"github.com/v2fly/v2ray-core/v4/app/router"
 	"github.com/v2fly/v2ray-core/v4/common"
 	"github.com/v2fly/v2ray-core/v4/common/net"
-	"github.com/v2fly/v2ray-core/v4/common/platform"
 	"github.com/v2fly/v2ray-core/v4/common/platform/filesystem"
 	"github.com/v2fly/v2ray-core/v4/common/protocol"
 	"github.com/v2fly/v2ray-core/v4/common/protocol/http"
@@ -24,6 +23,11 @@ import (
 )
 
 func init() {
+	const (
+		geoipURL   = "https://raw.githubusercontent.com/v2fly/geoip/release/geoip.dat"
+		geositeURL = "https://raw.githubusercontent.com/v2fly/domain-list-community/release/dlc.dat"
+	)
+
 	wd, err := os.Getwd()
 	common.Must(err)
 
@@ -33,22 +37,17 @@ func init() {
 
 	os.Setenv("v2ray.location.asset", tempPath)
 
-	if _, err := os.Stat(platform.GetAssetLocation("geoip.dat")); err != nil && errors.Is(err, fs.ErrNotExist) {
-		if _, err := os.Stat(geoipPath); err != nil && errors.Is(err, fs.ErrNotExist) {
-			common.Must(os.MkdirAll(tempPath, 0755))
-			geoipBytes, err := common.FetchHTTPContent(geoipURL)
-			common.Must(err)
-			common.Must(filesystem.WriteFile(geoipPath, geoipBytes))
-		}
+	if _, err := os.Stat(geoipPath); err != nil && errors.Is(err, fs.ErrNotExist) {
+		common.Must(os.MkdirAll(tempPath, 0o755))
+		geoipBytes, err := common.FetchHTTPContent(geoipURL)
+		common.Must(err)
+		common.Must(filesystem.WriteFile(geoipPath, geoipBytes))
 	}
-
-	if _, err := os.Stat(platform.GetAssetLocation("geosite.dat")); err != nil && errors.Is(err, fs.ErrNotExist) {
-		if _, err := os.Stat(geositePath); err != nil && errors.Is(err, fs.ErrNotExist) {
-			common.Must(os.MkdirAll(tempPath, 0755))
-			geositeBytes, err := common.FetchHTTPContent(geositeURL)
-			common.Must(err)
-			common.Must(filesystem.WriteFile(geositePath, geositeBytes))
-		}
+	if _, err := os.Stat(geositePath); err != nil && errors.Is(err, fs.ErrNotExist) {
+		common.Must(os.MkdirAll(tempPath, 0o755))
+		geositeBytes, err := common.FetchHTTPContent(geositeURL)
+		common.Must(err)
+		common.Must(filesystem.WriteFile(geositePath, geositeBytes))
 	}
 }
 
@@ -370,6 +369,7 @@ func loadGeoSite(country string) ([]*router.Domain, error) {
 
 	return nil, errors.New("country not found: " + country)
 }
+
 func TestChinaSites(t *testing.T) {
 	domains, err := loadGeoSite("CN")
 	common.Must(err)

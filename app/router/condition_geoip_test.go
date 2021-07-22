@@ -13,11 +13,12 @@ import (
 	"github.com/v2fly/v2ray-core/v4/app/router"
 	"github.com/v2fly/v2ray-core/v4/common"
 	"github.com/v2fly/v2ray-core/v4/common/net"
-	"github.com/v2fly/v2ray-core/v4/common/platform"
 	"github.com/v2fly/v2ray-core/v4/common/platform/filesystem"
 )
 
 func init() {
+	const geoipURL = "https://raw.githubusercontent.com/v2fly/geoip/release/geoip.dat"
+
 	wd, err := os.Getwd()
 	common.Must(err)
 
@@ -26,13 +27,11 @@ func init() {
 
 	os.Setenv("v2ray.location.asset", tempPath)
 
-	if _, err := os.Stat(platform.GetAssetLocation("geoip.dat")); err != nil && errors.Is(err, fs.ErrNotExist) {
-		if _, err := os.Stat(geoipPath); err != nil && errors.Is(err, fs.ErrNotExist) {
-			common.Must(os.MkdirAll(tempPath, 0755))
-			geoipBytes, err := common.FetchHTTPContent(geoipURL)
-			common.Must(err)
-			common.Must(filesystem.WriteFile(geoipPath, geoipBytes))
-		}
+	if _, err := os.Stat(geoipPath); err != nil && errors.Is(err, fs.ErrNotExist) {
+		common.Must(os.MkdirAll(tempPath, 0o755))
+		geoipBytes, err := common.FetchHTTPContent(geoipURL)
+		common.Must(err)
+		common.Must(filesystem.WriteFile(geoipPath, geoipBytes))
 	}
 }
 
@@ -99,7 +98,8 @@ func TestGeoIPMatcher(t *testing.T) {
 		{
 			Input:  "192.0.1.0",
 			Output: false,
-		}, {
+		},
+		{
 			Input:  "0.1.0.0",
 			Output: true,
 		},

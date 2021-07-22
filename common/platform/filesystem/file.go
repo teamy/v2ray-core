@@ -8,9 +8,15 @@ import (
 	"github.com/v2fly/v2ray-core/v4/common/platform"
 )
 
+type FileSeekerFunc func(path string) (io.ReadSeekCloser, error)
+
 type FileReaderFunc func(path string) (io.ReadCloser, error)
 
 type FileWriterFunc func(path string) (io.WriteCloser, error)
+
+var NewFileSeeker FileSeekerFunc = func(path string) (io.ReadSeekCloser, error) {
+	return os.Open(path)
+}
 
 var NewFileReader FileReaderFunc = func(path string) (io.ReadCloser, error) {
 	return os.Open(path)
@@ -49,7 +55,7 @@ func CopyFile(dst string, src string) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		return err
 	}

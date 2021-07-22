@@ -44,13 +44,18 @@ func (o *Observer) Type() interface{} {
 }
 
 func (o *Observer) Start() error {
-	o.finished = done.New()
-	go o.background()
+	if o.config != nil && len(o.config.SubjectSelector) != 0 {
+		o.finished = done.New()
+		go o.background()
+	}
 	return nil
 }
 
 func (o *Observer) Close() error {
-	return o.finished.Close()
+	if o.finished != nil {
+		return o.finished.Close()
+	}
+	return nil
 }
 
 func (o *Observer) background() {
@@ -71,7 +76,11 @@ func (o *Observer) background() {
 			if o.finished.Done() {
 				return
 			}
-			time.Sleep(time.Second * 10)
+			sleepTime := time.Second * 10
+			if o.config.ProbeInterval != 0 {
+				sleepTime = time.Duration(o.config.ProbeInterval)
+			}
+			time.Sleep(sleepTime)
 		}
 	}
 }
@@ -124,7 +133,11 @@ func (o *Observer) probe(outbound string) ProbeResult {
 	var GETTime time.Duration
 	err := task.Run(o.ctx, func() error {
 		startTime := time.Now()
-		response, err := httpClient.Get("https://api.v2fly.org/checkConnection.svgz")
+		probeURL := "https://api.v2fly.org/checkConnection.svgz"
+		if o.config.ProbeUrl != "" {
+			probeURL = o.config.ProbeUrl
+		}
+		response, err := httpClient.Get(probeURL)
 		if err != nil {
 			return newError("outbound failed to relay connection").Base(err)
 		}

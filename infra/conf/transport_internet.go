@@ -10,8 +10,10 @@ import (
 	"github.com/v2fly/v2ray-core/v4/common/platform/filesystem"
 	"github.com/v2fly/v2ray-core/v4/common/protocol"
 	"github.com/v2fly/v2ray-core/v4/common/serial"
+	"github.com/v2fly/v2ray-core/v4/infra/conf/cfgcommon"
 	"github.com/v2fly/v2ray-core/v4/transport/internet"
 	"github.com/v2fly/v2ray-core/v4/transport/internet/domainsocket"
+	httpheader "github.com/v2fly/v2ray-core/v4/transport/internet/headers/http"
 	"github.com/v2fly/v2ray-core/v4/transport/internet/http"
 	"github.com/v2fly/v2ray-core/v4/transport/internet/kcp"
 	"github.com/v2fly/v2ray-core/v4/transport/internet/quic"
@@ -142,6 +144,7 @@ type WebSocketConfig struct {
 	AcceptProxyProtocol  bool              `json:"acceptProxyProtocol"`
 	MaxEarlyData         int32             `json:"maxEarlyData"`
 	UseBrowserForwarding bool              `json:"useBrowserForwarding"`
+	EarlyDataHeaderName  string            `json:"earlyDataHeaderName"`
 }
 
 // Build implements Buildable.
@@ -162,6 +165,7 @@ func (c *WebSocketConfig) Build() (proto.Message, error) {
 		Header:               header,
 		MaxEarlyData:         c.MaxEarlyData,
 		UseBrowserForwarding: c.UseBrowserForwarding,
+		EarlyDataHeaderName:  c.EarlyDataHeaderName,
 	}
 	if c.AcceptProxyProtocol {
 		config.AcceptProxyProtocol = c.AcceptProxyProtocol
@@ -170,8 +174,10 @@ func (c *WebSocketConfig) Build() (proto.Message, error) {
 }
 
 type HTTPConfig struct {
-	Host *StringList `json:"host"`
-	Path string      `json:"path"`
+	Host    *cfgcommon.StringList            `json:"host"`
+	Path    string                           `json:"path"`
+	Method  string                           `json:"method"`
+	Headers map[string]*cfgcommon.StringList `json:"headers"`
 }
 
 // Build implements Buildable.
@@ -181,6 +187,23 @@ func (c *HTTPConfig) Build() (proto.Message, error) {
 	}
 	if c.Host != nil {
 		config.Host = []string(*c.Host)
+	}
+	if c.Method != "" {
+		config.Method = c.Method
+	}
+	if len(c.Headers) > 0 {
+		config.Header = make([]*httpheader.Header, 0, len(c.Headers))
+		headerNames := sortMapKeys(c.Headers)
+		for _, key := range headerNames {
+			value := c.Headers[key]
+			if value == nil {
+				return nil, newError("empty HTTP header value: " + key).AtError()
+			}
+			config.Header = append(config.Header, &httpheader.Header{
+				Name:  key,
+				Value: append([]string(nil), (*value)...),
+			})
+		}
 	}
 	return config, nil
 }
@@ -292,13 +315,13 @@ func (c *TLSCertConfig) Build() (*tls.Certificate, error) {
 }
 
 type TLSConfig struct {
-	Insecure                         bool             `json:"allowInsecure"`
-	Certs                            []*TLSCertConfig `json:"certificates"`
-	ServerName                       string           `json:"serverName"`
-	ALPN                             *StringList      `json:"alpn"`
-	EnableSessionResumption          bool             `json:"enableSessionResumption"`
-	DisableSystemRoot                bool             `json:"disableSystemRoot"`
-	PinnedPeerCertificateChainSha256 *[]string        `json:"pinnedPeerCertificateChainSha256"`
+	Insecure                         bool                  `json:"allowInsecure"`
+	Certs                            []*TLSCertConfig      `json:"certificates"`
+	ServerName                       string                `json:"serverName"`
+	ALPN                             *cfgcommon.StringList `json:"alpn"`
+	EnableSessionResumption          bool                  `json:"enableSessionResumption"`
+	DisableSystemRoot                bool                  `json:"disableSystemRoot"`
+	PinnedPeerCertificateChainSha256 *[]string             `json:"pinnedPeerCertificateChainSha256"`
 }
 
 // Build implements Buildable.
@@ -366,6 +389,8 @@ type SocketConfig struct {
 	TFO                 *bool  `json:"tcpFastOpen"`
 	TProxy              string `json:"tproxy"`
 	AcceptProxyProtocol bool   `json:"acceptProxyProtocol"`
+
+	TCPKeepAliveInterval int32 `json:"tcpKeepAliveInterval"`
 }
 
 // Build implements Buildable.
@@ -389,10 +414,11 @@ func (c *SocketConfig) Build() (*internet.SocketConfig, error) {
 	}
 
 	return &internet.SocketConfig{
-		Mark:                c.Mark,
-		Tfo:                 tfoSettings,
-		Tproxy:              tproxy,
-		AcceptProxyProtocol: c.AcceptProxyProtocol,
+		Mark:                 c.Mark,
+		Tfo:                  tfoSettings,
+		Tproxy:               tproxy,
+		AcceptProxyProtocol:  c.AcceptProxyProtocol,
+		TcpKeepAliveInterval: c.TCPKeepAliveInterval,
 	}, nil
 }
 

@@ -11,6 +11,7 @@ import (
 	"github.com/v2fly/v2ray-core/v4/app/proxyman"
 	"github.com/v2fly/v2ray-core/v4/app/stats"
 	"github.com/v2fly/v2ray-core/v4/common/serial"
+	"github.com/v2fly/v2ray-core/v4/infra/conf/cfgcommon"
 )
 
 var (
@@ -58,9 +59,9 @@ func toProtocolList(s []string) ([]proxyman.KnownProtocols, error) {
 }
 
 type SniffingConfig struct {
-	Enabled      bool        `json:"enabled"`
-	DestOverride *StringList `json:"destOverride"`
-	MetadataOnly bool        `json:"metadataOnly"`
+	Enabled      bool                  `json:"enabled"`
+	DestOverride *cfgcommon.StringList `json:"destOverride"`
+	MetadataOnly bool                  `json:"metadataOnly"`
 }
 
 // Build implements Buildable.
@@ -148,13 +149,13 @@ func (c *InboundDetourAllocationConfig) Build() (*proxyman.AllocationStrategy, e
 
 type InboundDetourConfig struct {
 	Protocol       string                         `json:"protocol"`
-	PortRange      *PortRange                     `json:"port"`
-	ListenOn       *Address                       `json:"listen"`
+	PortRange      *cfgcommon.PortRange           `json:"port"`
+	ListenOn       *cfgcommon.Address             `json:"listen"`
 	Settings       *json.RawMessage               `json:"settings"`
 	Tag            string                         `json:"tag"`
 	Allocation     *InboundDetourAllocationConfig `json:"allocate"`
 	StreamSetting  *StreamConfig                  `json:"streamSettings"`
-	DomainOverride *StringList                    `json:"domainOverride"`
+	DomainOverride *cfgcommon.StringList          `json:"domainOverride"`
 	SniffingConfig *SniffingConfig                `json:"sniffing"`
 }
 
@@ -253,13 +254,13 @@ func (c *InboundDetourConfig) Build() (*core.InboundHandlerConfig, error) {
 }
 
 type OutboundDetourConfig struct {
-	Protocol      string           `json:"protocol"`
-	SendThrough   *Address         `json:"sendThrough"`
-	Tag           string           `json:"tag"`
-	Settings      *json.RawMessage `json:"settings"`
-	StreamSetting *StreamConfig    `json:"streamSettings"`
-	ProxySettings *ProxyConfig     `json:"proxySettings"`
-	MuxSettings   *MuxConfig       `json:"mux"`
+	Protocol      string             `json:"protocol"`
+	SendThrough   *cfgcommon.Address `json:"sendThrough"`
+	Tag           string             `json:"tag"`
+	Settings      *json.RawMessage   `json:"settings"`
+	StreamSetting *StreamConfig      `json:"streamSettings"`
+	ProxySettings *ProxyConfig       `json:"proxySettings"`
+	MuxSettings   *MuxConfig         `json:"mux"`
 }
 
 // Build implements Buildable.
@@ -413,6 +414,14 @@ func (c *Config) Override(o *Config, fn string) {
 
 	if o.FakeDNS != nil {
 		c.FakeDNS = o.FakeDNS
+	}
+
+	if o.BrowserForwarder != nil {
+		c.BrowserForwarder = o.BrowserForwarder
+	}
+
+	if o.Observatory != nil {
+		c.Observatory = o.Observatory
 	}
 
 	// deprecated attrs... keep them for now
@@ -609,7 +618,7 @@ func (c *Config) Build() (*core.Config, error) {
 
 	// Backward compatibility.
 	if len(inbounds) > 0 && inbounds[0].PortRange == nil && c.Port > 0 {
-		inbounds[0].PortRange = &PortRange{
+		inbounds[0].PortRange = &cfgcommon.PortRange{
 			From: uint32(c.Port),
 			To:   uint32(c.Port),
 		}

@@ -6,9 +6,8 @@ import (
 	"context"
 
 	core "github.com/v2fly/v2ray-core/v4"
-	"github.com/v2fly/v2ray-core/v4/common"
-
 	"github.com/v2fly/v2ray-core/v4/app/observatory"
+	"github.com/v2fly/v2ray-core/v4/common"
 	"github.com/v2fly/v2ray-core/v4/features/extension"
 )
 
@@ -42,6 +41,7 @@ func (l *LeastPingStrategy) PickOutbound(strings []string) string {
 		for _, v := range status {
 			if outboundsList.contains(v.OutboundTag) && v.Alive && v.Delay < leastPing {
 				selectedOutboundName = v.OutboundTag
+				leastPing = v.Delay
 			}
 		}
 		return selectedOutboundName
